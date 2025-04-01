@@ -12,17 +12,16 @@ import java.net.URI
 
 @RestController
 @RequestMapping("/api/v1/scores", produces = ["application/json"])
-class FlipperScoreController(private val flipperScoreService : FlipperScoreService) {
+class FlipperScoreController(private val flipperScoreService: FlipperScoreService) {
 
     @GetMapping
     fun findAllScores() = ResponseEntity.ok(flipperScoreService.findAllScores())
 
     @PostMapping
-    fun createScore(@RequestBody scoreDTO : ScoreDTO): ResponseEntity<Void>{
+    fun createScore(@RequestBody scoreDTO: ScoreDTO): ResponseEntity<Void> {
         val scoresId = flipperScoreService.createScore(scoreDTO)
         return ResponseEntity
             .created(URI("/api/v1/scores/${scoresId}"))
             .build()
     }
-    //Score Liste soll nur Top 10 z.b Anzeigen --> Automatisch im Backend aussortieren und löschen
 }

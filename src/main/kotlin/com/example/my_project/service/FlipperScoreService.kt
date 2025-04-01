@@ -1,10 +1,8 @@
 package com.example.my_project.service
 
 import com.example.my_project.dto.ScoreDTO
-import com.example.my_project.model.Score
 import com.example.my_project.repository.ScoreRepository
 import org.springframework.stereotype.Service
-import java.util.UUID
 
 @Service
 class FlipperScoreService(private val repository: ScoreRepository) {
@@ -16,12 +14,12 @@ class FlipperScoreService(private val repository: ScoreRepository) {
         val score = scoreDTO.toEntity()
         val created = repository.save(score)
         cleanUpScoreBoard()
-        return created.id!!
+        return created.id
     }
 
-    fun cleanUpScoreBoard(){
+    fun cleanUpScoreBoard() {
         val scores = repository.findAllByOrderByScoreDesc()
-        if(scores.size > 3){
+        if (scores.size > 3) {
             repository.deleteAll(scores.drop(3))
         }
     }
