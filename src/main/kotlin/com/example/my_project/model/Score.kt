@@ -10,10 +10,7 @@ import jakarta.validation.constraints.Positive
 data class Score(
     @Id
     @GeneratedValue
-    val id: java.util.UUID,
-
-    @field:NotBlank(message = "must Not Be Blank")
-    val name: String,
+    val id: Long?,
 
     @field:Positive(message = "must be positive")
     val score: Int

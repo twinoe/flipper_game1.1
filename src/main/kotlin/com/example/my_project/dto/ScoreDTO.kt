@@ -4,17 +4,16 @@ import com.example.my_project.model.Score
 import java.util.UUID
 
 data class ScoreDTO(
-    val id: UUID,
-    val name: String,
+    val id: Long?,
     val score: Int
 ) {
     fun toEntity(): Score {
-        return Score(id, name, score)
+        return Score(id, score)
     }
 
     companion object {
         fun fromEntity(score: Score): ScoreDTO {
-            return ScoreDTO(score.id, score.name, score.score)
+            return ScoreDTO(score.id, score.score)
         }
     }
 }

@@ -8,18 +8,21 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.net.URI
 
 @RestController
 @RequestMapping("/api/v1/scores", produces = ["application/json"])
 class FlipperScoreController(private val flipperScoreService : FlipperScoreService) {
 
-    @GetMapping()
+    @GetMapping
     fun findAllScores() = ResponseEntity.ok(flipperScoreService.findAllScores())
 
-    @PostMapping()
+    @PostMapping
     fun createScore(@RequestBody scoreDTO : ScoreDTO): ResponseEntity<Void>{
-        val scores = flipperScoreService.createScore(scoreDTO)
-        return ResponseEntity.ok().build()
+        val scoresId = flipperScoreService.createScore(scoreDTO)
+        return ResponseEntity
+            .created(URI("/api/v1/scores/${scoresId}"))
+            .build()
     }
     //Score Liste soll nur Top 10 z.b Anzeigen --> Automatisch im Backend aussortieren und löschen
 }
