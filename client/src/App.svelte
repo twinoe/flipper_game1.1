@@ -11,6 +11,7 @@
   let charge = 0;
   let maxCharge = 60;
   let score = 0;
+  let highscore = 0;
   let leftFlipperActive = false;
   let rightFlipperActive = false;
 
@@ -36,6 +37,31 @@
     { x: 395, y: 530, width: 5, height: 68 },
     { x: 400, y: 200, width: 5, height: 55, angle: 2.7, type: 'sloped' },
   ];
+
+  async function submitScore(score: number) {
+  try {
+    const response = await fetch('http://localhost:8080/api/v1/scores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ score })
+    });
+    if (!response.ok) throw new Error('Fehler beim Senden des Scores');
+    await loadHighscore(); // danach Highscore aktualisieren
+  } catch (err) {
+    console.error('Score konnte nicht gesendet werden:', err);
+  }
+}
+
+async function loadHighscore() {
+  try {
+    const response = await fetch('http://localhost:8080/api/v1/scores');
+    if (!response.ok) throw new Error('Fehler beim Abrufen des Highscores');
+    const data = await response.json();
+    highscore = data.highscore ?? 0;
+  } catch (err) {
+    console.error('Highscore konnte nicht geladen werden:', err);
+  }
+}
 
   function drawObstacles() {
     const gradient = ctx.createLinearGradient(0, 0, 0, 600);
@@ -340,6 +366,8 @@
       if (e.code === 'ArrowLeft') leftFlipperActive = false;
       if (e.code === 'ArrowRight') rightFlipperActive = false;
     };
+
+    loadHighscore(); // ← direkt nach Mount abrufen
 
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
