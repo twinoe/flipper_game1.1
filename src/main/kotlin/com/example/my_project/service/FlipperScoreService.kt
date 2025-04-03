@@ -14,7 +14,7 @@ class FlipperScoreService(private val repository: ScoreRepository) {
         val score = scoreDTO.toEntity()
         val created = repository.save(score)
         cleanUpScoreBoard()
-        return created.id
+        return created.id!!
     }
 
     fun cleanUpScoreBoard() {
