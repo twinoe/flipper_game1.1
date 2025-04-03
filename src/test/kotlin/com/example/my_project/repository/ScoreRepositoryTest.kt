@@ -46,3 +46,4 @@ class ScoreRepositoryTest : StringSpec({
         verify { scoreRepository.findAllByOrderByScoreDesc() }
     }
 })
+//
