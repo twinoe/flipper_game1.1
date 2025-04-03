@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Positive
 data class Score(
     @Id
     @GeneratedValue
-    val id: Long,
+    val id: Long?,
 
     @field:Positive(message = "must be positive")
     val score: Int
