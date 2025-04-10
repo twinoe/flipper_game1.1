@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Pinball Spiel</title>
+
+    <!-- ✅ CSS gehört in den HEAD -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- ✅ jQuery & Matter.js ebenfalls im HEAD (oder vor dem Script) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/liabru/matter-attractors/build/matter-attractors.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <div class="score current-score">
+        score<br><span>0</span>
+    </div>
+    <div class="score high-score">
+        high score<br><span>0</span>
+    </div>
+    <button class="trigger left-trigger">tap!</button>
+    <button class="trigger right-trigger">tap!</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/liabru/matter-attractors/build/matter-attractors.min.js"></script>
+<script src="javascript.js"></script>
+
+
+<!-- ✅ Dein Script am besten am Ende des Bodys -->
+
+
+</body>
+</html>
