@@ -1,4 +1,3 @@
-
 (() => {
     // plugins
     Matter.use(MatterAttractors);
@@ -13,11 +12,11 @@
     };
     const COLOR = {
         BACKGROUND: '#212529',
-        OUTER: '#495057',
-        INNER: '#15aabf',
+        OUTER: 'rgb(124, 124, 112, 0.6)',
+        INNER: 'rgba(21, 170, 191, 0.5)',
         BUMPER: '#fab005',
         BUMPER_LIT: '#fff3bf',
-        PADDLE: '#e64980',
+        PADDLE: '#e6c149',
         PINBALL: '#dee2e6'
     };
     const GRAVITY = 0.75;
@@ -46,10 +45,10 @@
     }
 
     function init() {
-        // engine (shared)
+
         engine = Matter.Engine.create();
 
-        // world (shared)
+
         world = engine.world;
         world.bounds = {
             min: { x: 0, y: 0},
@@ -57,27 +56,26 @@
         };
         world.gravity.y = GRAVITY; // simulate rolling on a slanted table
 
-        // render (shared)
+
+
         render = Matter.Render.create({
-            element: $('.container')[0],
+            element: $('.pinball-wrapper')[0],
             engine: engine,
             options: {
                 width: world.bounds.max.x,
                 height: world.bounds.max.y,
                 wireframes: WIREFRAMES,
-                background: COLOR.BACKGROUND
+                background: 'transparent'
             }
         });
         Matter.Render.run(render);
 
-        // runner
+
         let runner = Matter.Runner.create();
         Matter.Runner.run(runner, engine);
 
-        // used for collision filtering on various bodies
-        stopperGroup = Matter.Body.nextGroup(true);
+            stopperGroup = Matter.Body.nextGroup(true);
 
-        // starting values
         currentScore = 0;
         highScore = 0;
         isLeftPaddleUp = false;
@@ -86,7 +84,7 @@
 
     function createStaticBodies() {
         Matter.World.add(world, [
-            // table boundaries (top, bottom, left, right)
+
             boundary(250, -30, 500, 100),
             boundary(250, 830, 500, 100),
             boundary(-30, 400, 100, 800),
@@ -108,6 +106,9 @@
             // bottom bumpers (left, right)
             bumper(165, 340),
             bumper(285, 340),
+            // Extra-Bumper (grüner Punkt)
+            bumper(225, 480),
+
 
             // shooter lane wall
             wall(440, 520, 20, 560, COLOR.OUTER),
@@ -136,6 +137,33 @@
             reset(225, 50),
             reset(465, 30)
         ]);
+
+        world.bodies.forEach(body => {
+            if (body.label === 'bumper') {
+                const { x, y } = body.position;
+                let icon = "⭐";
+                let score = 10;
+
+                if (x === 105 && y === 250) {
+                    icon = "⭐"; score = 10;
+                } else if (x === 225 && y === 250) {
+                    icon = "🔥"; score = 20;
+                } else if (x === 345 && y === 250) {
+                    icon = "⚡"; score = 30;
+                } else if (x === 165 && y === 340) {
+                    icon = "💣"; score = 40;
+                } else if (x === 285 && y === 340) {
+                    icon = "💎"; score = 50;
+                }
+
+
+                body._points = score;
+
+
+                addBumperIcon(body, icon);
+            }
+        });
+
     }
 
     function createPaddles() {
@@ -313,7 +341,7 @@
                 isLeftPaddleUp = false;
             });
         $('.right-trigger')
-            .on('mousedown touchstart', function(e) {
+        .on('mousedown touchstart', function(e) {
                 isRightPaddleUp = true;
             })
             .on('mouseup touchend', function(e) {
@@ -329,14 +357,27 @@
     }
 
     function pingBumper(bumper) {
-        updateScore(currentScore + 10);
+        const points = bumper._points || 10;
+        updateScore(currentScore + points);
 
-        // flash color
         bumper.render.fillStyle = COLOR.BUMPER_LIT;
-        setTimeout(function() {
+        setTimeout(() => {
             bumper.render.fillStyle = COLOR.BUMPER;
         }, 100);
+
+        showPopup("+" + points, bumper.position.x, bumper.position.y);
+        showRadarEffect(bumper.position.x, bumper.position.y); // 🚀 Hier der Effekt
+
+        if (bumper._iconElement) {
+            bumper._iconElement.classList.add("flash");
+            setTimeout(() => {
+                bumper._iconElement.classList.remove("flash");
+            }, 300);
+        }
     }
+
+
+
 
     function updateScore(newCurrentScore) {
         currentScore = newCurrentScore;
@@ -344,59 +385,59 @@
 
         // Highscore prüfen und ggf. senden
         if (currentScore > highScore) {
-            highScore = currentScore;
-            $highScore.text(highScore);
-            sendscore(highScore); // hier wird gesendet!
+          highScore = currentScore;
+          $highScore.text(highScore);
+          sendscore(highScore); // hier wird gesendet!
         }
     }
 
     async function sendscore(scorevalue) {
         try {
-            const response = await fetch('http://localhost:8080/api/v1/scores', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ score: scorevalue }),
-            });
+          const response = await fetch('http://localhost:8080/api/v1/scores', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ score: scorevalue }),
+          });
 
-            if (!response.ok) {
-                throw new Error('Fehler beim Senden des Scores');
-            }
+          if (!response.ok) {
+            throw new Error('Fehler beim Senden des Scores');
+          }
 
-            console.log('Highscore erfolgreich gesendet:', scorevalue);
+          console.log('Highscore erfolgreich gesendet:', scorevalue);
         } catch (err) {
-            console.error('Fehler beim Senden:', err.message);
+          console.error('Fehler beim Senden:', err.message);
         }
-    }
+      }
 
-    async function fetchHighscore() {
+      async function fetchHighscore() {
         try {
-            const response = await fetch('http://localhost:8080/api/v1/scores');
+          const response = await fetch('http://localhost:8080/api/v1/scores');
 
-            if (!response.ok) {
-                throw new Error('Fehler beim Laden der Highscores');
-            }
+          if (!response.ok) {
+            throw new Error('Fehler beim Laden der Highscores');
+          }
 
-            const highscores = await response.json();
+          const highscores = await response.json();
 
-            // Maximalen Score ermitteln (falls Liste kommt)
-            if (Array.isArray(highscores)) {
-                const maxScore = Math.max(...highscores.map(h => h.score));
-                highScore = maxScore;
-            } else if (typeof highscores.score === 'number') {
-                highScore = highscores.score; // falls nur ein Objekt mit score kommt
-            } else {
-                highScore = 0;
-            }
+          // Maximalen Score ermitteln (falls Liste kommt)
+          if (Array.isArray(highscores)) {
+            const maxScore = Math.max(...highscores.map(h => h.score));
+            highScore = maxScore;
+          } else if (typeof highscores.score === 'number') {
+            highScore = highscores.score; // falls nur ein Objekt mit score kommt
+          } else {
+            highScore = 0;
+          }
 
-            $highScore.text(highScore);
-            console.log('Highscore geladen:', highScore);
+          $highScore.text(highScore);
+          console.log('Highscore geladen:', highScore);
 
         } catch (err) {
-            console.error('Fehler beim Abrufen des Highscores:', err.message);
+          console.error('Fehler beim Abrufen des Highscores:', err.message);
         }
-    }
+      }
 
 
 
@@ -504,4 +545,65 @@
     }
 
     window.addEventListener('load', load, false);
+
+    function showPopup(text, x, y) {
+        const popup = document.createElement("div");
+        popup.className = "popup";
+        popup.textContent = text;
+
+        // Position ins HTML umrechnen (Canvas-Koordinaten zu Pixel)
+        const scale = render.options.width / render.canvas.width;
+        const left = x / scale;
+        const top = y / scale;
+
+        popup.style.left = `${left}px`;
+        popup.style.top = `${top}px`;
+
+        document.getElementById("popup-container").appendChild(popup);
+
+        setTimeout(() => {
+            popup.remove();
+        }, 1000);
+    }
+
+    function addBumperIcon(bumper, iconSymbol = "⭐") {
+        const icon = document.createElement("div");
+        icon.className = "bumper-icon";
+        icon.innerHTML = iconSymbol;
+
+        // Position ins HTML umrechnen
+        const scale = render.options.width / render.canvas.width;
+        const left = bumper.position.x / scale;
+        const top = bumper.position.y / scale;
+
+        icon.style.left = `${left}px`;
+        icon.style.top = `${top}px`;
+
+        // Speichern für Animation beim Treffer
+        bumper._iconElement = icon;
+
+        document.getElementById("bumper-icons").appendChild(icon);
+    }
+
+    function showRadarEffect(x, y) {
+        const ripple = document.createElement("div");
+        ripple.className = "radar-effect";
+
+        // Umrechnung Canvas → DOM-Position
+        const scale = render.options.width / render.canvas.width;
+        const left = x / scale;
+        const top = y / scale;
+
+        ripple.style.left = `${left - 10}px`; // -10 für Mitte des Effekts
+        ripple.style.top = `${top - 10}px`;
+
+        document.getElementById("popup-container").appendChild(ripple);
+
+        setTimeout(() => ripple.remove(), 600);
+    }
+
+
+
+
+
 })();

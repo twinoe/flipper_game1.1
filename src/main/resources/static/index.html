@@ -12,26 +12,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/liabru/matter-attractors/build/matter-attractors.min.js"></script>
 </head>
+
 <body>
 
+
+
 <div class="container">
-    <div class="score current-score">
-        score<br><span>0</span>
+
+    <div class="pinball-wrapper">
+        <video autoplay muted loop id="bg-video">
+            <source src="./assets/Unbenannt.mp4" type="video/mp4">
+        </video>
+
+        <div id="bumper-icons"></div>
+
+        <div class="score current-score">
+            score<br><span>0</span>
+        </div>
+
+        <div class="score high-score">
+
+
+            high score<br><span>0</span>
+        </div>
+        <!-- <button class="trigger left-trigger">tap!</button>
+        <button class="trigger right-trigger">tap!</button> -->
     </div>
-    <div class="score high-score">
-        high score<br><span>0</span>
-    </div>
-    <button class="trigger left-trigger">tap!</button>
-    <button class="trigger right-trigger">tap!</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/liabru/matter-attractors/build/matter-attractors.min.js"></script>
+    <script src="javascript.js"></script>
+
+    <div id="popup-container"></div>
+
+    <!-- ✅ Dein Script am besten am Ende des Bodys -->
 </div>
-<script src="https://cdn.jsdelivr.net/npm/poly-decomp@0.3.0/build/decomp.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/liabru/matter-attractors/build/matter-attractors.min.js"></script>
-<script src="javascript.js"></script>
-
-
-<!-- ✅ Dein Script am besten am Ende des Bodys -->
-
-
 </body>
 </html>

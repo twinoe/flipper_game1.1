@@ -22,9 +22,12 @@ body {
 
 .container {
     position: relative;
-    line-height: 0;
 
-}
+    overflow: hidden; /* 🎯 versteckt alles außerhalb */
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+  }
+
 
 .score {
     position: absolute;
@@ -36,6 +39,24 @@ body {
     font-size: 3.25rem;
 }
 
+
+.pinball-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+  }
+
+  #bg-video {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 💡 passt das Video perfekt an */
+    z-index: -10;
+    opacity: 0.3;
+  }
+
+
 .current-score {
     left: 10px;
 }
@@ -46,22 +67,22 @@ body {
 }
 
 .trigger {
-    appearance: none;
+  appearance: none;
     position: absolute;
     width: 80px;
     height: 80px;
     bottom: 10px;
-    border: 0;
+  border: 0;
     border-radius: 50%;
-    color: inherit;
-    background-color: #e64980;
+  color: inherit;
+    background-color: #e6c149;
     text-align: center;
     line-height: 80px;
     font-size: 1.25rem;
-    text-transform: inherit;
+  text-transform: inherit;
     cursor: pointer;
     user-select: none;
-    outline: none;
+  outline: none;
 }
 
 .left-trigger {
@@ -77,6 +98,97 @@ canvas {
     border-radius: 5px;
     box-shadow: 0 5px 25px rgba(0, 0, 0, 0.75);
 }
+
+#popup-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .popup {
+    position: absolute;
+    color: #fff;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 0 0 5px #000;
+    animation: popup-fade 1s ease-out forwards;
+    z-index: 10;
+  }
+
+  #bumper-icons {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+  }
+
+  .bumper-icon {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    font-size: 28px;
+    color: #fff;
+    text-shadow: 0 0 8px #ff0, 0 0 12px #ff0;
+    animation: spin 4s linear infinite;
+    transition: transform 0.3s ease, text-shadow 0.3s ease;
+  }
+
+  .bumper-icon.flash {
+    transform: translate(-50%, -50%) scale(1.5);
+    text-shadow: 0 0 12px #fff, 0 0 20px #ff0;
+  }
+
+  @keyframes spin {
+    0%   { transform: translate(-50%, -50%) rotate(0deg); }
+    100% { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+
+  .radar-effect {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 2px solid white;
+    border-radius: 50%;
+    opacity: 0.6;
+    transform: scale(0.5);
+    animation: radar-ping 0.6s ease-out forwards;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  @keyframes radar-ping {
+    0% {
+      opacity: 0.6;
+      transform: scale(0.5);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(3.5);
+    }
+  }
+
+
+
+  @keyframes popup-fade {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-40px);
+    }
+  }
+
 
 /* responsive scaling, because pinball tables are tall */
 @media (min-height: 0px) {
