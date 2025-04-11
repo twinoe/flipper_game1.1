@@ -35,14 +35,145 @@
     let leftPaddle, leftUpStopper, leftDownStopper, isLeftPaddleUp;
     let rightPaddle, rightUpStopper, rightDownStopper, isRightPaddleUp;
 
-    function load() {
-        init();
-        createStaticBodies();
-        createPaddles();
-        createPinball();
-        createEvents();
-        fetchHighscore();
-    }
+    
+        // Add WebSocket variable at the top with other shared variables
+        let ws;
+        const WS_SERVER_URL = "ws://192.168.58.230:8080/ws"; // Adjust to your ESP32's IP
+    
+    
+        function load() {
+            init();
+            createStaticBodies();
+            createPaddles();
+            createPinball();
+            initWebSocket(); // Initialize WebSocket FIRST
+            createEvents();  // Then create other events
+            fetchHighscore();
+        }
+    
+        // WebSocket initialization function
+        function initWebSocket() {
+            
+            try {
+                ws = new WebSocket(WS_SERVER_URL);
+    
+                ws.onopen = function(e) {
+                    console.log("WebSocket connected to ESP32");
+                };
+    
+                ws.onclose = function(e) {
+                    console.log("WebSocket disconnected, retrying...");
+                    setTimeout(initWebSocket, 2000);
+                };
+    
+                ws.onerror = function(e) {
+                    console.error("WebSocket error:", e);
+                };
+    
+                ws.onmessage = function(e) {
+                    const message = e.data;
+                    console.log("Received:", message);
+                    
+                    // Handle left button messages from ESP32
+                    if (message === 'left_pressed') {
+                        isLeftPaddleUp = true;
+                        animatePaddle('left', true);
+                        console.log("Left paddle pressed");
+                    } 
+                    else if (message === 'left_released') {
+                        isLeftPaddleUp = false;
+                        animatePaddle('left', false);
+                    } 
+                    
+                     // Handle left button messages from ESP32
+                    if (message === 'right_pressed') {
+                        isRightPaddleUp = true;
+                        animatePaddle('right', true);
+                        console.log("Right paddle pressed");
+                    } 
+                    else if (message === 'right_released') {
+                        isRightPaddleUp = false;
+                        animatePaddle('right', false);
+                    }
+                };
+            } catch (error) {
+                console.error("WebSocket initialization failed:", error);
+                setTimeout(initWebSocket, 2000); // Retry on failure
+            }
+        }
+    
+        // Modified createEvents function (remove WebSocket handling)
+        function createEvents() {
+            // ... [keep all your existing collision and beforeUpdate handlers] ...
+    
+            // mouse drag (god mode for grabbing pinball)
+            Matter.World.add(world, Matter.MouseConstraint.create(engine, {
+                mouse: Matter.Mouse.create(render.canvas),
+                constraint: {
+                    stiffness: 0.2,
+                    render: {
+                        visible: false
+                    }
+                }
+            }));
+    
+            // keyboard paddle events (keep these as fallback)
+            $('body').on('keydown', function(e) {
+                if (e.which === 37) { // left arrow key
+                    isLeftPaddleUp = true;
+                    animatePaddle('left', true);
+                } else if (e.which === 39) { // right arrow key
+                    isRightPaddleUp = true;
+                    animatePaddle('right', true);
+                }
+            });
+            
+            $('body').on('keyup', function(e) {
+                if (e.which === 37) { // left arrow key
+                    isLeftPaddleUp = false;
+                    animatePaddle('left', false);
+                } else if (e.which === 39) { // right arrow key
+                    isRightPaddleUp = false;
+                    animatePaddle('right', false);
+                }
+            });
+    
+            // click/tap paddle events (keep these)
+            $('.left-trigger')
+                .on('mousedown touchstart', function(e) {
+                    isLeftPaddleUp = true;
+                    animatePaddle('left', true);
+                })
+                .on('mouseup touchend', function(e) {
+                    isLeftPaddleUp = false;
+                    animatePaddle('left', false);
+                });
+                
+            $('.right-trigger')
+                .on('mousedown touchstart', function(e) {
+                    isRightPaddleUp = true;
+                    animatePaddle('right', true);
+                })
+                .on('mouseup touchend', function(e) {
+                    isRightPaddleUp = false;
+                    animatePaddle('right', false);
+                });
+        }
+    
+        // Add this new function for paddle animation
+        function animatePaddle(side, isUp) {
+            const paddle = side === 'left' ? leftPaddle : rightPaddle;
+            const angle = isUp ? (side === 'left' ? 0.57 : -0.57) : 0;
+            
+            if (paddle && paddle.comp) {
+                const hinge = side === 'left' ? {x: 142, y: 660} : {x: 308, y: 660};
+                Matter.Body.rotate(paddle.comp, angle, hinge);
+            }
+        }
+    
+        // ... [keep all your other existing functions exactly as they are] ...
+    
+
 
     function init() {
 
@@ -91,7 +222,7 @@
             boundary(530, 400, 100, 800),
 
             // dome
-            path(239, 86, PATHS.DOME),
+            path(251, 119, PATHS.DOME),
 
             // pegs (left, mid, right)
             wall(140, 140, 20, 40, COLOR.INNER),
@@ -273,82 +404,6 @@
         launchPinball();
     }
 
-    function createEvents() {
-        // events for when the pinball hits stuff
-        Matter.Events.on(engine, 'collisionStart', function(event) {
-            let pairs = event.pairs;
-            pairs.forEach(function(pair) {
-                if (pair.bodyB.label === 'pinball') {
-                    switch (pair.bodyA.label) {
-                        case 'reset':
-                            launchPinball();
-                            break;
-                        case 'bumper':
-                            pingBumper(pair.bodyA);
-                            break;
-                    }
-                }
-            });
-        });
-
-        // regulate pinball
-        Matter.Events.on(engine, 'beforeUpdate', function(event) {
-            // bumpers can quickly multiply velocity, so keep that in check
-            Matter.Body.setVelocity(pinball, {
-                x: Math.max(Math.min(pinball.velocity.x, MAX_VELOCITY), -MAX_VELOCITY),
-                y: Math.max(Math.min(pinball.velocity.y, MAX_VELOCITY), -MAX_VELOCITY),
-            });
-
-            // cheap way to keep ball from going back down the shooter lane
-            if (pinball.position.x > 450 && pinball.velocity.y > 0) {
-                Matter.Body.setVelocity(pinball, { x: 0, y: -10 });
-            }
-        });
-
-        // mouse drag (god mode for grabbing pinball)
-        Matter.World.add(world, Matter.MouseConstraint.create(engine, {
-            mouse: Matter.Mouse.create(render.canvas),
-            constraint: {
-                stiffness: 0.2,
-                render: {
-                    visible: false
-                }
-            }
-        }));
-
-        // keyboard paddle events
-        $('body').on('keydown', function(e) {
-            if (e.which === 37) { // left arrow key
-                isLeftPaddleUp = true;
-            } else if (e.which === 39) { // right arrow key
-                isRightPaddleUp = true;
-            }
-        });
-        $('body').on('keyup', function(e) {
-            if (e.which === 37) { // left arrow key
-                isLeftPaddleUp = false;
-            } else if (e.which === 39) { // right arrow key
-                isRightPaddleUp = false;
-            }
-        });
-
-        // click/tap paddle events
-        $('.left-trigger')
-            .on('mousedown touchstart', function(e) {
-                isLeftPaddleUp = true;
-            })
-            .on('mouseup touchend', function(e) {
-                isLeftPaddleUp = false;
-            });
-        $('.right-trigger')
-        .on('mousedown touchstart', function(e) {
-                isRightPaddleUp = true;
-            })
-            .on('mouseup touchend', function(e) {
-                isRightPaddleUp = false;
-            });
-    }
-
     function launchPinball() {
         updateScore(0);
         Matter.Body.setPosition(pinball, { x: 465, y: 765 });
@@ -375,9 +430,6 @@
             }, 300);
         }
     }
-
-
-
 
     function updateScore(newCurrentScore) {
         currentScore = newCurrentScore;
@@ -438,8 +490,6 @@
           console.error('Fehler beim Abrufen des Highscores:', err.message);
         }
       }
-
-
 
     // matter.js has a built in random range function, but it is deterministic
     function rand(min, max) {
@@ -602,8 +652,6 @@
         setTimeout(() => ripple.remove(), 600);
     }
 
-
-
-
+    window.addEventListener('load', load, false);
 
 })();

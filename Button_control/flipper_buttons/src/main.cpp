@@ -1,66 +1,84 @@
-#include <BleKeyboard.h>
-#include <Arduino.h>
+#include <WiFi.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
-BleKeyboard bleKeyboard;
+// WLAN-Zugangsdaten
+const char* ssid = "Moto";
+const char* password = "lws_ae2025";
 
-const int flipperLeftPin = 32;      // GPIO-Pin für den ersten Button
-const int flipperRightPin = 26;     // GPIO-Pin für den zweiten Button
-const int SpringPin = 25;           // GPIO-Pin für den dritten Button
+// Webserver & WebSocket auf Port 8080
+AsyncWebServer server(8080);
+AsyncWebSocket ws("/ws");
 
-void setup() {
-    pinMode(flipperLeftPin, INPUT_PULLUP);  // Button-Pin als Eingang mit Pull-Up-Widerstand definieren             ! Wichtig Low = gedrückt High = nicht gedrückt
-    pinMode(flipperRightPin, INPUT_PULLUP); // Zweiten Button-Pin als Eingang mit Pull-Up-Widerstand definieren
-    pinMode(SpringPin, INPUT_PULLUP);       // Dritten Button-Pin als Eingang mit Pull-Up-Widerstand definieren
-    bleKeyboard.begin();                    // BleKeyboard-Objekt initialisieren
-    Serial.begin(115200);                   // Serielle Kommunikation für Debugging starten
+// Pin-Zuweisung für Buttons: 32 = links, 26 = rechts
+const int pins[] = {32, 26};
+const char* buttonNames[] = {"left", "right"}; // Namen für Nachrichten
+
+int lastStates[2] = {HIGH, HIGH}; // Letzter Zustand der Buttons (HIGH = nicht gedrückt)
+
+// Sende Nachricht an alle Clients
+void notifyClients(const String& msg) {
+  ws.textAll(msg);
+  Serial.println("Sent: " + msg);
 }
 
-int flipperLeftState = HIGH;                    // Aktueller Zustand des ersten Buttons nicht gedrückt = 0
-int flipperRightState = HIGH;                   // Aktueller Zustand des zweiten Buttons nicht gedrückt = 0
-int SpringState = HIGH;                         // Aktueller Zustand des dritten Buttons nicht gedrückt = 0
+// WebSocket Event-Handler
+void handleWebSocketEvent(AsyncWebSocket* server, AsyncWebSocketClient* client,
+                          AwsEventType type, void* arg, uint8_t* data, size_t len) {
+  if (type == WS_EVT_CONNECT) {
+    Serial.printf("WebSocket Client #%u connected\n", client->id());
+  }
+}
 
+// Setup-Funktion
+void setup() {
+  Serial.begin(115200);
+
+  // Pins als Eingang mit Pullup
+  for (int i = 0; i < 2; i++) {
+    pinMode(pins[i], INPUT_PULLUP);
+  }
+
+  // WLAN-Verbindung herstellen
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnected to WiFi! IP address: " + WiFi.localIP().toString());
+
+  // WebSocket Setup
+  ws.onEvent(handleWebSocketEvent);
+  server.addHandler(&ws);
+
+  // Testseite
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/plain", "Flipper Server Running");
+  });
+
+  server.begin();
+}
+
+// Haupt-Loop
 void loop() {
-    if (bleKeyboard.isConnected()) {
-        int flipperLeft = digitalRead(flipperLeftPin);           // Zustand des linken Buttons lesen
-        int flipperRight = digitalRead(flipperRightPin);         // Zustand des rechten Buttons lesen
-        int Spring = digitalRead(SpringPin);                     // Zustand des feder Buttons lesen
+  static unsigned long lastCheck = 0;
 
-        if (Spring == LOW && SpringState == HIGH) {              // drückt die leertaste wenn es zuvor nciht gedrückt wurde.
-            Serial.println(" spring button pressed ");
-            bleKeyboard.press(0x20);                             // Leertaste senden
-        }
+  // Alle 20ms Buttons prüfen
+  if (millis() - lastCheck > 20) {
+    for (int i = 0; i < 2; i++) {
+      int current = digitalRead(pins[i]);
 
-        if (Spring == HIGH && SpringState == LOW) {              // LÖST die leertaste wenn es zuvor gedrückt wurde.
-            Serial.println("both buttons release bugi bugi");
-            bleKeyboard.release(0x20);                           // Leertaste senden 0X20 ist die Leertaste
-        }
+      if (current != lastStates[i]) {
+        String action = (current == LOW) ? "_pressed" : "_released";
+        String message = String(buttonNames[i]) + action;
+        notifyClients(message);
 
-        SpringState = Spring;                                    // Aktuellen Zustand des feder Buttons speichern
-
-        if (flipperLeft == LOW && flipperLeftState == HIGH) {    // drückt die linke Pfeil Taste wenn es zuvor nicht gedrückt wurde.
-            Serial.println("left button pressed ");
-            bleKeyboard.press(KEY_LEFT_ARROW);                   // simuliert das drücken der linken pfeil Taste
-        }
-
-        if (flipperLeft == HIGH && flipperLeftState == LOW) {    // LÖST die leertaste wenn es zuvor gedrückt wurde.
-            bleKeyboard.release(KEY_LEFT_ARROW);                 // simuliert das lösen der linken pfeil Taste
-            Serial.println("left button released ");
-        }
-        flipperLeftState = flipperLeft;                          // Aktuellen Zustand des ersten Buttons speichern
-
-        if (flipperRight == LOW && flipperRightState == HIGH) {  // drückt die rechte Pfeil Taste wenn es zuvor gedrückt wurde.
-            Serial.println("right button pressed ");
-            bleKeyboard.press(KEY_RIGHT_ARROW);                  // simuliert das drücken der rechten Pfeil Taste
-          }
-
-        if (flipperRight == HIGH && flipperRightState == LOW) {   // LÖST die rechte Pfeil Taste wenn es zuvor gedrückt wurde.
-            Serial.println("right button released ");
-            bleKeyboard.release(KEY_RIGHT_ARROW);                 // simuliert das lösen der linken pfeil Taste
-            delay(100);
-        }
-
-        flipperRightState = flipperRight;                           // Aktuellen Zustand des rechten Buttons speichern
-
-        delay(100);                                                 // Kurze Verzögerung zum Entprellen des Buttons
+        lastStates[i] = current;
+      }
     }
+    lastCheck = millis();
+  }
+
+  // Ungültige Clients aus Liste entfernen
+  ws.cleanupClients();
 }
