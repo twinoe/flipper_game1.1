@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../../../../../Flipper-game/testing"
+		},
+		{
+			"name": "flipper_buttons",
+			"path": ".."
+		}
+	],
+	"settings": {}
+}

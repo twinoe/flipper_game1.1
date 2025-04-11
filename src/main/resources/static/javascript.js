@@ -36,14 +36,145 @@
 	let leftPaddle, leftUpStopper, leftDownStopper, isLeftPaddleUp;
 	let rightPaddle, rightUpStopper, rightDownStopper, isRightPaddleUp;
 
-	function load() {
-		init();
-		createStaticBodies();
-		createPaddles();
-		createPinball();
-		createEvents();
-        fetchHighscore();
-	}
+    
+        // Add WebSocket variable at the top with other shared variables
+        let ws;
+        const WS_SERVER_URL = "ws://192.168.58.230:8080/ws"; // Adjust to your ESP32's IP
+    
+    
+        function load() {
+            init();
+            createStaticBodies();
+            createPaddles();
+            createPinball();
+            initWebSocket(); // Initialize WebSocket FIRST
+            createEvents();  // Then create other events
+            fetchHighscore();
+        }
+    
+        // WebSocket initialization function
+        function initWebSocket() {
+            
+            try {
+                ws = new WebSocket(WS_SERVER_URL);
+    
+                ws.onopen = function(e) {
+                    console.log("WebSocket connected to ESP32");
+                };
+    
+                ws.onclose = function(e) {
+                    console.log("WebSocket disconnected, retrying...");
+                    setTimeout(initWebSocket, 2000);
+                };
+    
+                ws.onerror = function(e) {
+                    console.error("WebSocket error:", e);
+                };
+    
+                ws.onmessage = function(e) {
+                    const message = e.data;
+                    console.log("Received:", message);
+                    
+                    // Handle left button messages from ESP32
+                    if (message === 'left_pressed') {
+                        isLeftPaddleUp = true;
+                        animatePaddle('left', true);
+                        console.log("Left paddle pressed");
+                    } 
+                    else if (message === 'left_released') {
+                        isLeftPaddleUp = false;
+                        animatePaddle('left', false);
+                    } 
+                    
+                     // Handle left button messages from ESP32
+                    if (message === 'right_pressed') {
+                        isRightPaddleUp = true;
+                        animatePaddle('right', true);
+                        console.log("Right paddle pressed");
+                    } 
+                    else if (message === 'right_released') {
+                        isRightPaddleUp = false;
+                        animatePaddle('right', false);
+                    }
+                };
+            } catch (error) {
+                console.error("WebSocket initialization failed:", error);
+                setTimeout(initWebSocket, 2000); // Retry on failure
+            }
+        }
+    
+        // Modified createEvents function (remove WebSocket handling)
+        function createEvents() {
+            // ... [keep all your existing collision and beforeUpdate handlers] ...
+    
+            // mouse drag (god mode for grabbing pinball)
+            Matter.World.add(world, Matter.MouseConstraint.create(engine, {
+                mouse: Matter.Mouse.create(render.canvas),
+                constraint: {
+                    stiffness: 0.2,
+                    render: {
+                        visible: false
+                    }
+                }
+            }));
+    
+            // keyboard paddle events (keep these as fallback)
+            $('body').on('keydown', function(e) {
+                if (e.which === 37) { // left arrow key
+                    isLeftPaddleUp = true;
+                    animatePaddle('left', true);
+                } else if (e.which === 39) { // right arrow key
+                    isRightPaddleUp = true;
+                    animatePaddle('right', true);
+                }
+            });
+            
+            $('body').on('keyup', function(e) {
+                if (e.which === 37) { // left arrow key
+                    isLeftPaddleUp = false;
+                    animatePaddle('left', false);
+                } else if (e.which === 39) { // right arrow key
+                    isRightPaddleUp = false;
+                    animatePaddle('right', false);
+                }
+            });
+    
+            // click/tap paddle events (keep these)
+            $('.left-trigger')
+                .on('mousedown touchstart', function(e) {
+                    isLeftPaddleUp = true;
+                    animatePaddle('left', true);
+                })
+                .on('mouseup touchend', function(e) {
+                    isLeftPaddleUp = false;
+                    animatePaddle('left', false);
+                });
+                
+            $('.right-trigger')
+                .on('mousedown touchstart', function(e) {
+                    isRightPaddleUp = true;
+                    animatePaddle('right', true);
+                })
+                .on('mouseup touchend', function(e) {
+                    isRightPaddleUp = false;
+                    animatePaddle('right', false);
+                });
+        }
+    
+        // Add this new function for paddle animation
+        function animatePaddle(side, isUp) {
+            const paddle = side === 'left' ? leftPaddle : rightPaddle;
+            const angle = isUp ? (side === 'left' ? 0.57 : -0.57) : 0;
+            
+            if (paddle && paddle.comp) {
+                const hinge = side === 'left' ? {x: 142, y: 660} : {x: 308, y: 660};
+                Matter.Body.rotate(paddle.comp, angle, hinge);
+            }
+        }
+    
+        // ... [keep all your other existing functions exactly as they are] ...
+    
+
 
 	function init() {
 	
@@ -91,8 +222,8 @@
 			boundary(-30, 400, 100, 800),
 			boundary(530, 400, 100, 800),
 
-			// dome
-			path(251, 120, PATHS.DOME),
+            // dome
+            path(251, 119, PATHS.DOME),
 
 			// pegs (left, mid, right)
 			wall(140, 140, 20, 40, COLOR.INNER),
@@ -257,158 +388,20 @@
 		Matter.Body.rotate(paddleRight.comp, -0.57, { x: 308, y: 660 });
 	}
 
-    function startTypingEffect() {
-        const textElement = document.getElementById("animated-text");
-        const messages = [
-          "Learn together and grow together",
-          "Eat(). Code(). Sleep(). Repeat().",
-          "Your future starts here! SchwarzIT"
-        ];
-      
-        let messageIndex = 0;
-        let charIndex = 0;
-        let typing = true;
-      
-        function type() {
-          const currentMessage = messages[messageIndex];
-          if (typing) {
-            if (charIndex < currentMessage.length) {
-              textElement.textContent += currentMessage.charAt(charIndex);
-              charIndex++;
-              setTimeout(type, 70); // Buchstabe für Buchstabe erscheinen
-            } else {
-              typing = false;
-              setTimeout(type, 2000); // Warten nach vollständigem Text
+    function createPinball() {
+        // x/y are set to when pinball is launched
+        pinball = Matter.Bodies.circle(0, 0, 14, {
+            label: 'pinball',
+            collisionFilter: {
+                group: stopperGroup
+            },
+            render: {
+                fillStyle: COLOR.PINBALL
             }
-          } else {
-            if (charIndex > 0) {
-              textElement.textContent = currentMessage.substring(0, charIndex - 1);
-              charIndex--;
-              setTimeout(type, 40); // Buchstabe für Buchstabe löschen
-            } else {
-              typing = true;
-              messageIndex = (messageIndex + 1) % messages.length;
-              setTimeout(type, 1000); // Pause vor neuer Zeile
-            }
-          }
-        }
-      
-        type();
-      }
-      
-      window.addEventListener("load", () => {
-        startTypingEffect();
-      });
-      
-
-	function createPinball() {
-		// x/y are set to when pinball is launched
-		pinball = Matter.Bodies.circle(0, 0, 14, {
-			label: 'pinball',
-			collisionFilter: {
-				group: stopperGroup
-			},
-			render: {
-				fillStyle: COLOR.PINBALL
-			}
-		});
-		Matter.World.add(world, pinball);
-		launchPinball();
-	}
-
-	function createEvents() {
-		// events for when the pinball hits stuff
-		Matter.Events.on(engine, 'collisionStart', function(event) {
-			let pairs = event.pairs;
-			pairs.forEach(function(pair) {
-				if (pair.bodyB.label === 'pinball') {
-					switch (pair.bodyA.label) {
-						case 'reset':
-                            handleGameOver();
-							launchPinball();
-							break;
-						case 'bumper':
-							pingBumper(pair.bodyA);
-							break;
-					}
-				}
-			});
-		});
-
-		// regulate pinball
-		Matter.Events.on(engine, 'beforeUpdate', function(event) {
-			// bumpers can quickly multiply velocity, so keep that in check
-			Matter.Body.setVelocity(pinball, {
-				x: Math.max(Math.min(pinball.velocity.x, MAX_VELOCITY), -MAX_VELOCITY),
-				y: Math.max(Math.min(pinball.velocity.y, MAX_VELOCITY), -MAX_VELOCITY),
-			});
-
-			// cheap way to keep ball from going back down the shooter lane
-			if (pinball.position.x > 450 && pinball.velocity.y > 0) {
-				Matter.Body.setVelocity(pinball, { x: 0, y: -10 });
-			}
-		});
-
-		// mouse drag (god mode for grabbing pinball)
-		Matter.World.add(world, Matter.MouseConstraint.create(engine, {
-			mouse: Matter.Mouse.create(render.canvas),
-			constraint: {
-				stiffness: 0.2,
-				render: {
-					visible: false
-				}
-			}
-		}));
-
-		// keyboard paddle events
-		$('body').on('keydown', function(e) {
-			if (e.which === 37) { // left arrow key
-				isLeftPaddleUp = true;
-			} else if (e.which === 39) { // right arrow key
-				isRightPaddleUp = true;
-			}
-		});
-		$('body').on('keyup', function(e) {
-			if (e.which === 37) { // left arrow key
-				isLeftPaddleUp = false;
-			} else if (e.which === 39) { // right arrow key
-				isRightPaddleUp = false;
-			}
-		});
-
-		// click/tap paddle events
-		$('.left-trigger')
-			.on('mousedown touchstart', function(e) {
-				isLeftPaddleUp = true;
-			})
-			.on('mouseup touchend', function(e) {
-				isLeftPaddleUp = false;
-			});
-		$('.right-trigger')
-		.on('mousedown touchstart', function(e) {
-				isRightPaddleUp = true;
-			})
-			.on('mouseup touchend', function(e) {
-				isRightPaddleUp = false;
-			});
-	}
-
-    function showGameOverOverlay() {
-        const overlay = document.getElementById("game-over-overlay");
-        overlay.classList.add("show");
-    
-        setTimeout(() => {
-            overlay.classList.remove("show");
-        }, 2000); // 2 Sekunden anzeigen
+        });
+        Matter.World.add(world, pinball);
+        launchPinball();
     }
-    
-    function handleGameOver() {
-        if (currentScore > 0) {
-            sendscore(currentScore);
-        }
-        showGameOverOverlay(); // 🟥 Overlay einblenden
-    }
-    
 
 	function launchPinball() {
 		updateScore(0);
@@ -436,7 +429,6 @@
             }, 300);
         }
     }
-    
 
 	function updateScore(newCurrentScore) {
         currentScore = newCurrentScore;
@@ -497,13 +489,11 @@
           console.error('Fehler beim Abrufen des Highscores:', err.message);
         }
       }
-      
-      
 
-	// matter.js has a built in random range function, but it is deterministic
-	function rand(min, max) {
-		return Math.random() * (max - min) + min;
-	}
+    // matter.js has a built in random range function, but it is deterministic
+    function rand(min, max) {
+        return Math.random() * (max - min) + min;
+    }
 
 	// outer edges of pinball table
 	function boundary(x, y, width, height) {
@@ -658,5 +648,8 @@
         document.getElementById("popup-container").appendChild(ripple);
     
         setTimeout(() => ripple.remove(), 600);
-    }    
+    }
+
+   
+
 })();
