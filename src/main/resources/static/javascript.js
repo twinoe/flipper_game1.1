@@ -42,10 +42,13 @@
 
     let gameStarted = false;
     let isPaused = true;
-    let gameOverActice = false;
+    let gameOverActive = false;
 
     function startGameOnKeyPress() {
-        if (gameStarted || gameOverActive) return; // ⛔ NICHT wenn Game-Over aktiv
+        const welcomeVisible = document.getElementById("welcome-overlay").classList.contains("show");
+      
+        // ⛔ Nur starten, wenn Welcome sichtbar UND kein GameOver aktiv
+        if (gameStarted || gameOverActive || !welcomeVisible) return;
       
         document.getElementById("welcome-overlay").classList.remove("show");
         isPaused = false;
@@ -63,20 +66,20 @@ document.addEventListener("keydown", (e) => {
 
 // WebSocket-Tastenstart ebenfalls erkennen
 function checkStartFromWS() {
-    if (!gameStarted) {
-      console.log("🟢 ESP-Start erkannt");
+    const welcomeVisible = document.getElementById("welcome-overlay").classList.contains("show");
   
-      document.getElementById("welcome-overlay").classList.remove("show");
-      isPaused = false;
-      gameStarted = true;
+    // ⛔ Nur starten, wenn Welcome sichtbar UND kein GameOver aktiv
+    if (gameStarted || gameOverActive || !welcomeVisible) return;
   
-      // 💡 starte Ball mit Delay, damit isPaused vorher gesetzt ist
-      setTimeout(() => {
-        launchPinball();
-      }, 10);
-    }
+    console.log("🟢 ESP-Start erkannt");
+    document.getElementById("welcome-overlay").classList.remove("show");
+    isPaused = false;
+    gameStarted = true;
+  
+    setTimeout(() => {
+      launchPinball();
+    }, 10);
   }
-  
   
 
 
@@ -563,22 +566,24 @@ $('.right-trigger')
     }
     
     function handleGameOver() {
+        if (gameOverActive) return; // ⛔ Schon aktiv? Nichts machen.
+        gameOverActive = true;      // Jetzt blockieren
+    
         if (currentScore > 0) {
-          sendscore(currentScore);
+            sendscore(currentScore);
         }
-      
-        gameOverActive = true; // ⛔ SPIELSTART VERHINDERN
+    
         showGameOverOverlay();
-      
+    
         isPaused = true;
         gameStarted = false;
-      
+    
         setTimeout(() => {
-          document.getElementById("welcome-overlay").classList.add("show");
-          gameOverActive = false; // ✅ SPIELDARF WIEDER GESTARTET WERDEN
+            document.getElementById("welcome-overlay").classList.add("show");
+            gameOverActive = false; // ✅ Jetzt wieder freigeben
         }, 2000);
-      }
-      
+    }
+    
 
 	function launchPinball() {
         
