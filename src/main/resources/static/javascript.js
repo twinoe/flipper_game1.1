@@ -13,11 +13,11 @@
 	};
 	const COLOR = {
 		BACKGROUND: '#212529',
-		OUTER: 'rgba(199, 199, 70, 0.83)',
+		OUTER: 'rgba(199, 199, 70, 0.9)',
 		INNER: 'rgba(21, 170, 191, 0.5)',
 		BUMPER: 'rgba(250, 189, 5, 0.3)',
 		BUMPER_LIT: '#fff3bf',
-		PADDLE: '#e6c149',
+		PADDLE: 'red',
 		PINBALL: '#dee2e6'
 	};
 	const GRAVITY = 0.75;
@@ -42,9 +42,10 @@
 
     let gameStarted = false;
     let isPaused = true;
+    let gameOverActice = false;
 
     function startGameOnKeyPress() {
-        if (gameStarted) return;
+        if (gameStarted || gameOverActive) return; // ⛔ NICHT wenn Game-Over aktiv
       
         document.getElementById("welcome-overlay").classList.remove("show");
         isPaused = false;
@@ -62,12 +63,21 @@ document.addEventListener("keydown", (e) => {
 
 // WebSocket-Tastenstart ebenfalls erkennen
 function checkStartFromWS() {
-  if (!gameStarted) {
-    document.getElementById("welcome-overlay").classList.remove("show");
-    launchPinball();
-    gameStarted = true;
+    if (!gameStarted) {
+      console.log("🟢 ESP-Start erkannt");
+  
+      document.getElementById("welcome-overlay").classList.remove("show");
+      isPaused = false;
+      gameStarted = true;
+  
+      // 💡 starte Ball mit Delay, damit isPaused vorher gesetzt ist
+      setTimeout(() => {
+        launchPinball();
+      }, 10);
+    }
   }
-}
+  
+  
 
 
 	function load() {
@@ -78,7 +88,23 @@ function checkStartFromWS() {
 		createPinball();
 		createEvents();
         fetchHighscore();
+        document.getElementById("welcome-overlay").classList.add("show");
+
 	}
+
+    function animatePaddle(side, isUp) {
+        const paddleComp = (side === 'left') ? 'paddleLeftComp' : 'paddleRightComp';
+        const bodies = Matter.Composite.allBodies(world);
+        const paddle = bodies.find(b => b.label === paddleComp);
+      
+        if (paddle) {
+          const angle = (side === 'left')
+            ? (isUp ? -0.25 : 0.25)
+            : (isUp ? 0.25 : -0.25);
+          Matter.Body.setAngularVelocity(paddle, angle);
+        }
+      }
+      
 
     function initWebSocket() {
         try {
@@ -100,29 +126,28 @@ function checkStartFromWS() {
             ws.onmessage = function (e) {
                 const message = e.data;
                 console.log("📨 Empfangen:", message);
-    
-                // 🎮 Steuerung Links
+              
+                // Links
                 if (message === 'left_pressed') {
-                    isLeftPaddleUp = true;
-                    animatePaddle('left', true);
-                    checkStartFromWS();
-                    console.log("⬅️ Linker Flipper gedrückt");
+                  isLeftPaddleUp = true;
+                  animatePaddle('left', true);
+                  checkStartFromWS(); // ✅ HIER AUFRUFEN
                 } else if (message === 'left_released') {
-                    isLeftPaddleUp = false;
-                    animatePaddle('left', false);
-                    checkStartFromWS();
+                  isLeftPaddleUp = false;
+                  animatePaddle('left', false);
                 }
-    
-                // 🎮 Steuerung Rechts
+              
+                // Rechts
                 if (message === 'right_pressed') {
-                    isRightPaddleUp = true;
-                    animatePaddle('right', true);
-                    console.log("➡️ Rechter Flipper gedrückt");
+                  isRightPaddleUp = true;
+                  animatePaddle('right', true);
+                  checkStartFromWS(); // ✅ AUCH HIER AUFRUFEN
                 } else if (message === 'right_released') {
-                    isRightPaddleUp = false;
-                    animatePaddle('right', false);
+                  isRightPaddleUp = false;
+                  animatePaddle('right', false);
                 }
-            };
+              };
+              
         } catch (error) {
             console.error("❌ WebSocket konnte nicht initialisiert werden:", error);
             setTimeout(initWebSocket, 2000); // 🕒 Bei Fehler erneut versuchen
@@ -542,13 +567,15 @@ $('.right-trigger')
           sendscore(currentScore);
         }
       
-        showGameOverOverlay(); // 🟥 Overlay einblenden
+        gameOverActive = true; // ⛔ SPIELSTART VERHINDERN
+        showGameOverOverlay();
       
-        // Spiel pausieren & Begrüßung zeigen
         isPaused = true;
         gameStarted = false;
+      
         setTimeout(() => {
           document.getElementById("welcome-overlay").classList.add("show");
+          gameOverActive = false; // ✅ SPIELDARF WIEDER GESTARTET WERDEN
         }, 2000);
       }
       
