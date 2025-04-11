@@ -184,33 +184,68 @@ canvas {
 	animation: rotate-glow 2s linear infinite;
 }
 
+.welcome-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  color: #00f5d4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-family: 'Hind', sans-serif;
+  text-align: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+.welcome-overlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.welcome-message {
+  animation: pulseText 1.5s ease-in-out infinite alternate;
+}
+
+
 .game-banner {
-    position: absolute;
-    top: 0px; /* anpassen je nach Spielhöhe */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 500px;
-    padding: 10px 20px;
-    background: rgba(0, 0, 0, 0.6);
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    text-align: center;
-    z-index: 20;
-    overflow: hidden;
-    animation: dropIn 1s ease forwards;
-    box-shadow: 0 0 10px rgba(0,255,255,0.2);
-  }
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 400px;
+  height: 30px;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 20;
+  animation: dropIn 1s ease forwards;
+  box-shadow: 0 0 10px rgba(0,255,255,0.2);
+}
+
 
   .banner-text {
     font-family: 'Hind', sans-serif;
     font-size: 1rem;
-    text-transform: uppercase;
     color: #00f5d4;
-    white-space: nowrap;
+    white-space: nowrap;     /* ❗ verhindert Umbruch */
     overflow: hidden;
+    text-transform: uppercase;
     border-right: 2px solid #00f5d4;
     animation: blinkCursor 0.7s steps(1) infinite;
+    display: inline-block;   /* ❗ sorgt für "in einer Reihe" */
+    line-height: 1;          /* reduziert vertikalen Abstand */
   }
   
   @keyframes blinkCursor {
@@ -243,7 +278,11 @@ canvas {
     }
   }  
 
-
+  #animated-text span {
+    font-weight: bold;
+    transition: color 0.3s ease;
+  }
+  
 
   .radar-effect {
     position: absolute;

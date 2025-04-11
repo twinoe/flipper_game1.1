@@ -13,7 +13,7 @@
 	};
 	const COLOR = {
 		BACKGROUND: '#212529',
-		OUTER: 'rgb(124, 124, 112, 0.6)',
+		OUTER: 'rgba(199, 199, 70, 0.83)',
 		INNER: 'rgba(21, 170, 191, 0.5)',
 		BUMPER: 'rgba(250, 189, 5, 0.3)',
 		BUMPER_LIT: '#fff3bf',
@@ -39,6 +39,36 @@
 	let engine, world, render, pinball, stopperGroup;
 	let leftPaddle, leftUpStopper, leftDownStopper, isLeftPaddleUp;
 	let rightPaddle, rightUpStopper, rightDownStopper, isRightPaddleUp;
+
+    let gameStarted = false;
+    let isPaused = true;
+
+    function startGameOnKeyPress() {
+        if (gameStarted) return;
+      
+        document.getElementById("welcome-overlay").classList.remove("show");
+        isPaused = false;
+        gameStarted = true;
+        launchPinball();
+      }
+      
+
+// Tastendruck zum Start
+document.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    startGameOnKeyPress();
+  }
+});
+
+// WebSocket-Tastenstart ebenfalls erkennen
+function checkStartFromWS() {
+  if (!gameStarted) {
+    document.getElementById("welcome-overlay").classList.remove("show");
+    launchPinball();
+    gameStarted = true;
+  }
+}
+
 
 	function load() {
 		init();
@@ -75,10 +105,12 @@
                 if (message === 'left_pressed') {
                     isLeftPaddleUp = true;
                     animatePaddle('left', true);
+                    checkStartFromWS();
                     console.log("⬅️ Linker Flipper gedrückt");
                 } else if (message === 'left_released') {
                     isLeftPaddleUp = false;
                     animatePaddle('left', false);
+                    checkStartFromWS();
                 }
     
                 // 🎮 Steuerung Rechts
@@ -311,12 +343,26 @@
 
     function startTypingEffect() {
         const textElement = document.getElementById("animated-text");
+      
         const messages = [
-          "Learn together and grow together",
-          "Eat(). Code(). Sleep(). Repeat().",
-          "Your future starts here! SchwarzIT"
+          "le@rn together >",
+          "gr#w +ogeth<r",
+          "E@t(). Code(). Sleep(). Repe@t().",
+          "Your future st@rts here! SchwarzIT"
         ];
       
+        const colorMap = {
+            l: "#00d8cc",
+            "@": "#00d8cc",
+            n: "#00d8cc",
+            "#": "#fca311",
+            "+": "#fca311",
+            "<": "#fca311",
+            ">": "#fca311",
+            o: "#ffffff",
+            g: "#ffffff",
+          };
+          
         let messageIndex = 0;
         let charIndex = 0;
         let typing = true;
@@ -325,48 +371,60 @@
           const currentMessage = messages[messageIndex];
           if (typing) {
             if (charIndex < currentMessage.length) {
-              textElement.textContent += currentMessage.charAt(charIndex);
+              const char = currentMessage.charAt(charIndex);
+              const span = document.createElement("span");
+              span.textContent = char;
+      
+              const color = colorMap[char.toLowerCase()];
+              if (color) {
+                span.style.color = color;
+              }
+      
+              textElement.appendChild(span);
               charIndex++;
-              setTimeout(type, 70); // Buchstabe für Buchstabe erscheinen
+              setTimeout(type, 70);
             } else {
               typing = false;
-              setTimeout(type, 2000); // Warten nach vollständigem Text
+              setTimeout(type, 2000);
             }
           } else {
             if (charIndex > 0) {
-              textElement.textContent = currentMessage.substring(0, charIndex - 1);
+              textElement.removeChild(textElement.lastChild);
               charIndex--;
-              setTimeout(type, 40); // Buchstabe für Buchstabe löschen
+              setTimeout(type, 40);
             } else {
               typing = true;
               messageIndex = (messageIndex + 1) % messages.length;
-              setTimeout(type, 1000); // Pause vor neuer Zeile
+              setTimeout(type, 1000);
             }
           }
         }
       
+        // Vor dem Start einmal leeren
+        textElement.innerHTML = '';
         type();
       }
+      
       
       window.addEventListener("load", () => {
         startTypingEffect();
       });
       
 
-	function createPinball() {
-		// x/y are set to when pinball is launched
-		pinball = Matter.Bodies.circle(0, 0, 14, {
-			label: 'pinball',
-			collisionFilter: {
-				group: stopperGroup
-			},
-			render: {
-				fillStyle: COLOR.PINBALL
-			}
-		});
-		Matter.World.add(world, pinball);
-		launchPinball();
-	}
+      function createPinball() {
+        pinball = Matter.Bodies.circle(0, 0, 14, {
+          label: 'pinball',
+          collisionFilter: {
+            group: stopperGroup
+          },
+          render: {
+            fillStyle: COLOR.PINBALL
+          }
+        });
+        Matter.World.add(world, pinball);
+        // ❌ launchPinball(); NICHT direkt starten
+      }
+      
 
 	function createEvents() {
 		// events for when the pinball hits stuff
@@ -481,13 +539,24 @@ $('.right-trigger')
     
     function handleGameOver() {
         if (currentScore > 0) {
-            sendscore(currentScore);
+          sendscore(currentScore);
         }
+      
         showGameOverOverlay(); // 🟥 Overlay einblenden
-    }
-    
+      
+        // Spiel pausieren & Begrüßung zeigen
+        isPaused = true;
+        gameStarted = false;
+        setTimeout(() => {
+          document.getElementById("welcome-overlay").classList.add("show");
+        }, 2000);
+      }
+      
 
 	function launchPinball() {
+        
+        if (isPaused) return; 
+
 		updateScore(0);
 		Matter.Body.setPosition(pinball, { x: 465, y: 765 });
 		Matter.Body.setVelocity(pinball, { x: 0, y: -25 + rand(-2, 2) });
