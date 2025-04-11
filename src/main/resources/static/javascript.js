@@ -658,10 +658,5 @@
         document.getElementById("popup-container").appendChild(ripple);
     
         setTimeout(() => ripple.remove(), 600);
-    }
-    
-    
-    
-    
-    
+    }    
 })();
